@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sistem Master Database: Modernisasi & PKM</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Cyber-Brutalism / Database Theme */
+            --bg-base: #0f172a; /* Deep slate */
+            --bg-panel: #1e293b;
+            --primary-neon: #39ff14; /* Hacker Green */
+            --secondary-neon: #00ffff; /* Cyan */
+            --accent-neon: #ff00ff; /* Magenta */
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-width: 3px;
+            --shadow-brutal: 4px 4px 0px var(--primary-neon);
+            --shadow-hover: 6px 6px 0px var(--secondary-neon);
+            --shadow-active: 2px 2px 0px var(--accent-neon);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Space Mono', monospace;
+            touch-action: manipulation; /* Prevent zoom on double tap */
+        }
+
+        body {
+            background-color: var(--bg-base);
+            background-image: 
+                linear-gradient(rgba(57, 255, 20, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(57, 255, 20, 0.05) 1px, transparent 1px);
+            background-size: 30px 30px;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3, h4 { text-transform: uppercase; letter-spacing: -1px; }
+
+        /* App Layout (Dashboard style) */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 15px;
+        }
+
+        /* Top Nav */
+        .top-nav {
+            border: var(--border-width) solid var(--primary-neon);
+            background: var(--bg-panel);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-brutal);
+        }
+
+        .sys-title {
+            color: var(--primary-neon);
+            font-weight: 700;
+            font-size: 1.2rem;
+            text-shadow: 0 0 5px rgba(57, 255, 20, 0.3);
+        }
+
+        /* Screens */
+        .screen {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+        }
+        .screen.active { display: flex; }
+
+        /* Panels */
+        .panel {
+            background: var(--bg-panel);
+            border: var(--border-width) solid var(--secondary-neon);
+            padding: 20px;
+            box-shadow: var(--shadow-brutal);
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        /* Buttons */
+        .btn {
+            background: var(--bg-base);
+            color: var(--primary-neon);
+            border: var(--border-width) solid var(--primary-neon);
+            padding: 12px 20px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: var(--shadow-brutal);
+            transition: all 0.1s ease;
+            text-transform: uppercase;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .btn:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: var(--shadow-hover);
+            color: var(--secondary-neon);
+            border-color: var(--secondary-neon);
+        }
+        .btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: var(--shadow-active);
+        }
+        .btn-magenta {
+            color: var(--accent-neon);
+            border-color: var(--accent-neon);
+            box-shadow: 4px 4px 0px var(--accent-neon);
+        }
+        .btn:disabled {
+            border-color: #475569;
+            color: #475569;
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Inputs */
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; color: var(--secondary-neon); margin-bottom: 8px; font-weight: 700; }
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            background: #020617;
+            border: var(--border-width) solid var(--primary-neon);
+            color: var(--primary-neon);
+            font-family: 'Space Mono', monospace;
+            font-size: 1.1rem;
+            outline: none;
+        }
+        .input-group input:focus { border-color: var(--accent-neon); box-shadow: 0 0 10px rgba(255,0,255,0.3); }
+
+        /* Terminal Logs / Story Box */
+        .terminal-box {
+            background: #000;
+            border: 2px solid #334155;
+            padding: 15px;
+            color: var(--primary-neon);
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .terminal-box::before { content: "> root@sys:~$ "; color: var(--accent-neon); }
+        .terminal-hint { color: var(--secondary-neon); margin-top: 10px; display: block; font-size: 0.8rem; }
+
+        /* Gameplay Area */
+        .workspace { display: flex; flex-direction: column; gap: 20px; }
+        
+        /* Draggables (Data Chips) */
+        .data-pool {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 20px;
+            background: rgba(0, 255, 255, 0.05);
+            border: 2px dashed var(--secondary-neon);
+            min-height: 120px;
+            align-items: center;
+            justify-content: center;
+        }
+        .data-chip {
+            background: #0f172a;
+            border: 2px solid var(--primary-neon);
+            color: var(--text-main);
+            padding: 10px 15px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: grab;
+            user-select: none;
+            box-shadow: 3px 3px 0px var(--primary-neon);
+            transition: transform 0.1s;
+            text-align: center;
+            touch-action: none;
+            max-width: 100%;
+            word-wrap: break-word;
+        }
+        .data-chip.is-dragging { cursor: grabbing; box-shadow: none; z-index: 1000; border-color: var(--accent-neon); background: #1e293b; opacity: 0.9; }
+        
+        /* Dropzones (Database Tables) */
+        .db-schema {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 15px;
+        }
+        .table-def {
+            background: #000;
+            border: 2px solid var(--text-muted);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .table-def .field-name {
+            color: var(--accent-neon);
+            font-weight: 700;
+            font-size: 0.85rem;
+            border-bottom: 1px dashed var(--text-muted);
+            padding-bottom: 5px;
+        }
+        .drop-slot {
+            background: #0f172a;
+            border: 2px dashed #475569;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            padding: 5px;
+        }
+        .drop-slot.hovered { background: rgba(57, 255, 20, 0.1); border-color: var(--primary-neon); }
+
+        /* Stats & Badges */
+        .stats-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+        .progress-container { flex: 1; min-width: 200px; border: 2px solid var(--text-muted); height: 20px; background: #000; position: relative; }
+        .progress-bar { height: 100%; background: var(--primary-neon); width: 0%; transition: width 0.3s ease; }
+        .progress-text { position: absolute; width: 100%; text-align: center; top: 0; font-size: 0.75rem; color: #fff; mix-blend-mode: difference; font-weight: bold; line-height: 16px; }
+        
+        .badge-rack { display: flex; gap: 8px; }
+        .badge { background: #000; color: var(--text-muted); border: 1px solid var(--text-muted); padding: 4px 8px; font-size: 0.7rem; }
+        .badge.earned { color: var(--secondary-neon); border-color: var(--secondary-neon); box-shadow: 2px 2px 0px var(--secondary-neon); }
+
+        /* Result List */
+        .audit-log { list-style: none; margin-top: 20px; font-size: 0.85rem; }
+        .audit-item { padding: 10px; border-left: 4px solid var(--text-muted); background: #000; margin-bottom: 10px; }
+        .audit-item.success { border-color: var(--primary-neon); color: var(--primary-neon); }
+        .audit-item.error { border-color: var(--danger, #ef4444); color: var(--danger, #ef4444); }
+
+        .footer-credits { text-align: center; margin-top: 30px; font-size: 0.8rem; color: var(--text-muted); padding: 20px; }
+
+        @media (max-width: 600px) {
+            .sys-title { font-size: 1rem; }
+            .data-chip { font-size: 0.8rem; padding: 8px; }
+            .panel { padding: 15px; }
+            .btn { font-size: 0.9rem; padding: 10px 15px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <!-- Top Navigation -->
+        <header class="top-nav">
+            <div class="sys-title">[DB_MASTER::MODERNISASI_PKM]</div>
+            <button class="btn btn-magenta" style="padding: 5px 10px; font-size: 0.8rem;" onclick="toggleAudio()" id="btn-audio">AUDIO: ON</button>
+        </header>
+
+        <!-- SCREEN 1: GATEWAY (LOGIN) -->
+        <main class="screen active" id="screen-gateway">
+            <div class="panel">
+                <h2>AUTH_REQUIRED</h2>
+                <p style="color: var(--text-muted); margin-bottom: 25px; font-size: 0.9rem;">
+                    Akses ke Database Master Operasional Indogrosir membutuhkan otentikasi.
+                </p>
+                
+                <div class="input-group">
+                    <label>> NAMA_AGEN (USER):</label>
+                    <input type="text" id="input-name" placeholder="Masukkan nama..." autocomplete="off">
+                </div>
+                <div class="input-group">
+                    <label>> NIK (ID_KEY):</label>
+                    <input type="text" id="input-nik" placeholder="Masukkan NIK..." autocomplete="off">
+                </div>
+                
+                <button class="btn" onclick="initiateLogin()">CONNECT DATABASE</button>
+            </div>
+        </main>
+
+        <!-- SCREEN 2: BRIEFING -->
+        <main class="screen" id="screen-briefing">
+            <div class="panel">
+                <h2 style="color: var(--secondary-neon);">MISSION OBJECTIVE</h2>
+                <div class="terminal-box" style="margin-top: 20px;">
+                    WARNING: Anomali terdeteksi pada sistem PKM dan pengaturan Modernisasi Tahap 2 di cabang Anda. <br><br>
+                    TUGAS: Lakukan query manual (Drag & Drop) untuk mengembalikan relasi data antara Rumus PKM, Status Storage, dan Ketentuan Service Level.
+                </div>
+                <p style="margin-bottom: 15px; font-size: 0.95rem; color: #cbd5e1;">
+                    <strong>RULES OF ENGAGEMENT:</strong><br>
+                    1. Selesaikan 10 Query (Level) dari modul pelatihan.<br>
+                    2. Tarik *Data Chip* ke *Database Table* yang sesuai.<br>
+                    3. Jawaban benar memberikan akumulasi poin.<br>
+                    4. Dapatkan Badge (Novice, Pro, Master) berdasarkan progres.
+                </p>
+                <button class="btn btn-magenta" style="width: 100%; margin-top: 10px;" onclick="enterWorkspace()">[ EXECUTE_START ]</button>
+            </div>
+        </main>
+
+        <!-- SCREEN 3: CORE GAMEPLAY (WORKSPACE) -->
+        <main class="screen" id="screen-game">
+            <div class="stats-bar">
+                <div style="font-size: 0.9rem; font-weight: bold; color: var(--primary-neon);">
+                    QUERY_SCORE: <span id="ui-score">0</span>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-bar" id="ui-progress"></div>
+                    <div class="progress-text" id="ui-progress-text">0% COMPLETE</div>
+                </div>
+            </div>
+
+            <div class="badge-rack" style="margin-bottom: 20px;">
+                <div class="badge" id="badge-1">[DB_NOVICE]</div>
+                <div class="badge" id="badge-2">[DB_PRO]</div>
+                <div class="badge" id="badge-3">[DB_MASTER]</div>
+            </div>
+
+            <div class="panel">
+                <h3 id="ui-level-title" style="color: var(--secondary-neon); margin-bottom: 10px; font-size: 1.1rem;">LEVEL X</h3>
+                <div class="terminal-box">
+                    <span id="ui-story"></span>
+                    <span class="terminal-hint" id="ui-hint"></span>
+                </div>
+
+                <div class="workspace">
+                    <div class="data-pool" id="source-zone">
+                        <!-- Draggable Chips -->
+                    </div>
+                    
+                    <div class="db-schema" id="target-zone">
+                        <!-- Drop Tables -->
+                    </div>
+                </div>
+
+                <button class="btn" id="btn-submit" onclick="submitQuery()" style="width: 100%; margin-top: 25px;" disabled>COMMIT_TRANSACTION();</button>
+            </div>
+        </main>
+
+        <!-- SCREEN 4: DEBRIEF (AUDIT LOG) -->
+        <main class="screen" id="screen-debrief">
+            <div class="panel" style="border-color: var(--primary-neon);">
+                <h2 style="color: var(--primary-neon); text-align: center; margin-bottom: 10px;">SYSTEM AUDIT COMPLETE</h2>
+                <div style="text-align: center; color: var(--text-muted); margin-bottom: 20px;">
+                    USER: <span id="final-name" style="color: var(--text-main);"></span>
+                </div>
+                
+                <div class="terminal-box" style="text-align: center; font-size: 1.5rem; color: var(--accent-neon);">
+                    FINAL ACCURACY: <span id="final-score">0</span>%
+                </div>
+                
+                <h4 id="reinforcement-msg" style="text-align: center; margin-bottom: 20px; line-height: 1.5;"></h4>
+                
+                <h3 style="margin-top: 30px; font-size: 1rem; color: var(--secondary-neon);">> AUDIT_LOG_DETAILS:</h3>
+                <ul class="audit-log" id="result-log"></ul>
+
+                <button class="btn btn-magenta" onclick="location.reload()" style="width: 100%; margin-top: 30px;">REBOOT_SYSTEM</button>
+            </div>
+        </main>
+
+        <footer class="footer-credits">
+            Education & Training Dept. © 2026<br>
+            Indogrosir Master Ops
+        </footer>
+    </div>
+
+    <!-- AUDIO ENGINE (Web Audio API) -->
+    <script>
+        let audioCtx;
+        let isMuted = false;
+        let bgmOscillator;
+        let bgmGain;
+        let bgmInterval;
+        
+        // A cyber/tech sounding loop
+        const melody = [440, 0, 440, 523.25, 0, 659.25, 440, 0]; // A4, C5, E5 arpeggio
+        let noteIdx = 0;
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            startBGM();
+        }
+
+        function startBGM() {
+            if(bgmInterval) clearInterval(bgmInterval);
+            bgmInterval = setInterval(() => {
+                if(isMuted || !audioCtx) return;
+                const freq = melody[noteIdx];
+                if (freq > 0) {
+                    const osc = audioCtx.createOscillator();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(freq / 2, audioCtx.currentTime); // Lower pitch for techno feel
+                    
+                    const filter = audioCtx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(800, audioCtx.currentTime);
+                    filter.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.15);
+
+                    const env = audioCtx.createGain();
+                    env.gain.setValueAtTime(0.03, audioCtx.currentTime); // Low volume
+                    env.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+                    
+                    osc.connect(filter);
+                    filter.connect(env);
+                    env.connect(audioCtx.destination);
+                    
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.15);
+                }
+                noteIdx = (noteIdx + 1) % melody.length;
+            }, 150); // Fast techno tempo
+        }
+
+        function toggleAudio() {
+            isMuted = !isMuted;
+            document.getElementById('btn-audio').innerText = isMuted ? "AUDIO: OFF" : "AUDIO: ON";
+            document.getElementById('btn-audio').style.color = isMuted ? "var(--text-muted)" : "var(--primary-neon)";
+        }
+
+        function playSFX(type) {
+            if (isMuted || !audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'correct') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(1200, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.2);
+            } else if (type === 'wrong') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            } else if (type === 'drop') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1000, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.05);
+            }
+        }
+    </script>
+
+    <!-- GAME LOGIC & DATA -->
+    <script>
+        // --- 10 SOAL BERDASARKAN MODUL PDF ---
+        const gameData = [
+            {
+                level: 1,
+                title: "Lvl 01: Parameter Inti PKM",
+                story: "Mapping definisi parameter operasional untuk pembentukan PKM.",
+                hint: "/* Hubungkan singkatan dengan pengertian aslinya */",
+                items: [
+                    { id: "ans1_1", text: "Rata-rata sales dalam jangka waktu tertentu" },
+                    { id: "ans1_2", text: "Jeda waktu order (PO) hingga pengiriman" },
+                    { id: "ans1_3", text: "Nilai pengali pengiriman barang supplier" },
+                    { id: "ans1_4", text: "Penetapan Jumlah Stok Maksimal Toko" }
+                ],
+                targets: [
+                    { id: "drop1_1", title: "AVERAGE SALES PERDAY", correct: "ans1_1" },
+                    { id: "drop1_2", title: "LEAD TIME (LT)", correct: "ans1_2" },
+                    { id: "drop1_3", title: "KOEFISIEN (N)", correct: "ans1_3" },
+                    { id: "drop1_4", title: "DEFINISI PKM", correct: "ans1_4" }
+                ]
+            },
+            {
+                level: 2,
+                title: "Lvl 02: Syntax Rumus Utama",
+                story: "Sistem membutuhkan validasi rumus matematis operasional.",
+                hint: "/* SPB fokus pada plano, PKM fokus pada sales & waktu */",
+                items: [
+                    { id: "ans2_1", text: "AVG Sales x (LT x n)" },
+                    { id: "ans2_2", text: "Maxplano - Qty Minpct" },
+                    { id: "ans2_3", text: "(Saldo Awal + Akhir)/2 : Sales perday" }
+                ],
+                targets: [
+                    { id: "drop2_1", title: "RUMUS PKM", correct: "ans2_1" },
+                    { id: "drop2_2", title: "RUMUS SPB OTOMATIS", correct: "ans2_2" },
+                    { id: "drop2_3", title: "RUMUS DAY SALES INVENTORY (DSI)", correct: "ans2_3" }
+                ]
+            },
+            {
+                level: 3,
+                title: "Lvl 03: Variabel Service Level (SL)",
+                story: "Tentukan nilai Koefisien N berdasarkan persentase Service Level pengiriman.",
+                hint: "/* Semakin tinggi SL, semakin kecil angka koefisien N */",
+                items: [
+                    { id: "ans3_1", text: "N = 2.5" },
+                    { id: "ans3_2", text: "N = 3.0" },
+                    { id: "ans3_3", text: "N = 4.0" },
+                    { id: "ans3_4", text: "N = 5.0" }
+                ],
+                targets: [
+                    { id: "drop3_1", title: "SERVICE LEVEL 80% - 100%", correct: "ans3_1" },
+                    { id: "drop3_2", title: "SERVICE LEVEL 60% - 79%", correct: "ans3_2" },
+                    { id: "drop3_3", title: "SERVICE LEVEL 40% - 59%", correct: "ans3_3" },
+                    { id: "drop3_4", title: "SERVICE LEVEL 0% - 39%", correct: "ans3_4" }
+                ]
+            },
+            {
+                level: 4,
+                title: "Lvl 04: Aturan PO & Payment",
+                story: "Mapping definisi yang mengatur batas waktu pengiriman dan pembayaran.",
+                hint: "/* Perhatikan efek hari libur nasional terhadap umur PO */",
+                items: [
+                    { id: "ans4_1", text: "Umur PO mundur/diperpanjang sesuai jumlah hari" },
+                    { id: "ans4_2", text: "Batas waktu supplier kirim barang ke IGR" },
+                    { id: "ans4_3", text: "Waktu pembayaran ke supplier setelah BPB terbentuk" }
+                ],
+                targets: [
+                    { id: "drop4_1", title: "JIKA HARI PO = TANGGAL MERAH", correct: "ans4_1" },
+                    { id: "drop4_2", title: "UMUR PURCHASE ORDER (PO)", correct: "ans4_2" },
+                    { id: "drop4_3", title: "TERM OF PAYMENT (TOP)", correct: "ans4_3" }
+                ]
+            },
+            {
+                level: 5,
+                title: "Lvl 05: Alamat Rak Display",
+                story: "Identifikasi kode lokasi untuk membedakan target display SPB.",
+                hint: "/* R10A = Reguler, FD = Floor, EC = End Cap */",
+                items: [
+                    { id: "ans5_1", text: "Area Rak Display Reguler" },
+                    { id: "ans5_2", text: "Area Floor Display (FD)" },
+                    { id: "ans5_3", text: "Area End Cap (Rak Sewa IGR)" }
+                ],
+                targets: [
+                    { id: "drop5_1", title: "LOKASI: R10A.04.B.04.1", correct: "ans5_1" },
+                    { id: "drop5_2", title: "LOKASI: FD01.01.Z.01.3", correct: "ans5_2" },
+                    { id: "drop5_3", title: "LOKASI: EC01.03.Z.02.1", correct: "ans5_3" }
+                ]
+            },
+            {
+                level: 6,
+                title: "Lvl 06: Fungsi Maxplano & Minpct",
+                story: "Bedakan kegunaan dari pembatas stok atas dan bawah di planogram.",
+                hint: "/* Maxplano untuk batas maksimum, Minpct untuk trigger pengisian */",
+                items: [
+                    { id: "ans6_1", text: "Membatasi display barang berlebih di rak" },
+                    { id: "ans6_2", text: "Sebagai pengingat pengisian barang (menyentuh batas)" },
+                    { id: "ans6_3", text: "Kapasitas display maksimal dari Planogram HO" }
+                ],
+                targets: [
+                    { id: "drop6_1", title: "FUNGSI UTAMA MAXPLANO", correct: "ans6_1" },
+                    { id: "drop6_2", title: "FUNGSI UTAMA MINPCT", correct: "ans6_2" },
+                    { id: "drop6_3", title: "DEFINISI MAXDIS", correct: "ans6_3" }
+                ]
+            },
+            {
+                level: 7,
+                title: "Lvl 07: Setting Persentase Min PCT",
+                story: "Alokasikan persentase Min PCT sesuai SOP lokasi rak.",
+                hint: "/* SPB Otomatis diprioritaskan untuk rak reguler (30%) */",
+                items: [
+                    { id: "ans7_1", text: "Setting Min PCT = 30%" },
+                    { id: "ans7_2", text: "Setting Min PCT = 1%" },
+                    { id: "ans7_3", text: "Membaca kelipatan karton" }
+                ],
+                targets: [
+                    { id: "drop7_1", title: "LOKASI RAK REGULER (PRIORITAS)", correct: "ans7_1" },
+                    { id: "drop7_2", title: "LOKASI FLOOR DISPLAY / GONDOLA", correct: "ans7_2" },
+                    { id: "drop7_3", title: "MIN PCT ITEM STATUS STORAGE (SB/SK/SC)", correct: "ans7_3" }
+                ]
+            },
+            {
+                level: 8,
+                title: "Lvl 08: Hierarki Status Storage",
+                story: "Klasifikasikan status penyimpanan barang berdasarkan sisa Maxpallet.",
+                hint: "/* SB = Penuh, SK = Setengah, SC = Seperempat */",
+                items: [
+                    { id: "ans8_1", text: "Sisa Menyentuh Minimal 1 Pallet Penuh" },
+                    { id: "ans8_2", text: "Sisa Menyentuh 1/2 Maxpallet" },
+                    { id: "ans8_3", text: "Sisa Menyentuh 1/4 Maxpallet" }
+                ],
+                targets: [
+                    { id: "drop8_1", title: "STATUS: STORAGE BESAR (SB)", correct: "ans8_1" },
+                    { id: "drop8_2", title: "STATUS: STORAGE KECIL (SK)", correct: "ans8_2" },
+                    { id: "drop8_3", title: "STATUS: STORAGE CAMPURAN (SC)", correct: "ans8_3" }
+                ]
+            },
+            {
+                level: 9,
+                title: "Lvl 09: Perubahan Status Storage -> NS",
+                story: "Validasi syarat terjadinya penurunan status dari area Storage ke Non-Storage (NS).",
+                hint: "/* Terjadi jika produk kurang laku dan muat di rak */",
+                items: [
+                    { id: "ans9_1", text: "Terjadi penurunan sales (IGR & IDM berubah jadi IGR Only)" },
+                    { id: "ans9_2", text: "PKMT lebih kecil dari Maxdis (Fisik rak < Maxdis)" }
+                ],
+                targets: [
+                    { id: "drop9_1", title: "ALASAN UTAMA (WHY)", correct: "ans9_1" },
+                    { id: "drop9_2", title: "SYARAT FISIK RAK", correct: "ans9_2" }
+                ]
+            },
+            {
+                level: 10,
+                title: "Lvl 10: Perubahan Status NS -> Storage",
+                story: "Validasi syarat kenaikan status dari Non-Storage (NS) ke area Storage.",
+                hint: "/* Terjadi jika sales meledak dan butuh tempat penyimpanan gudang */",
+                items: [
+                    { id: "ans10_1", text: "Terjadi peningkatan sales drastis (Penambahan PKM)" },
+                    { id: "ans10_2", text: "Sisa display di toko minimal 1 Pallet (Tidak tertampung)" }
+                ],
+                targets: [
+                    { id: "drop10_1", title: "ALASAN UTAMA (WHY)", correct: "ans10_1" },
+                    { id: "drop10_2", title: "SYARAT FISIK GUDANG/DISPLAY", correct: "ans10_2" }
+                ]
+            }
+        ];
+
+        let state = {
+            name: "", nik: "", score: 0, currentLevel: 0, totalDrops: 0, correctDrops: 0, answersLog: []
+        };
+
+        // --- NAVIGATION ---
+        function switchScreen(id) {
+            document.querySelectorAll('.screen').forEach(c => c.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function initiateLogin() {
+            const name = document.getElementById('input-name').value.trim();
+            const nik = document.getElementById('input-nik').value.trim();
+            if (!name || !nik) {
+                alert("ERR_NULL_VALUE: Nama dan NIK wajib diisi!");
+                return;
+            }
+            state.name = name;
+            state.nik = nik;
+            
+            initAudio(); // Must trigger on user interaction
+            switchScreen('screen-briefing');
+            
+            // Calculate total drops for scoring
+            state.totalDrops = gameData.reduce((sum, level) => sum + level.targets.length, 0);
+        }
+
+        function enterWorkspace() {
+            switchScreen('screen-game');
+            renderLevel();
+        }
+
+        // --- CORE MECHANICS ---
+        function renderLevel() {
+            const levelData = gameData[state.currentLevel];
+            document.getElementById('ui-level-title').innerText = levelData.title;
+            document.getElementById('ui-story').innerHTML = levelData.story;
+            document.getElementById('ui-hint').innerHTML = levelData.hint;
+            document.getElementById('btn-submit').disabled = true;
+
+            const sourceZone = document.getElementById('source-zone');
+            const targetZone = document.getElementById('target-zone');
+            
+            sourceZone.innerHTML = '';
+            targetZone.innerHTML = '';
+
+            // Shuffle Source Chips
+            const shuffledItems = [...levelData.items].sort(() => Math.random() - 0.5);
+
+            shuffledItems.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'data-chip';
+                el.id = item.id;
+                el.innerText = item.text;
+                setupDragEvents(el);
+                sourceZone.appendChild(el);
+            });
+
+            // Render Target Tables
+            levelData.targets.forEach(tgt => {
+                const tbl = document.createElement('div');
+                tbl.className = 'table-def';
+                tbl.innerHTML = `<div class="field-name">[FIELD]: ${tgt.title}</div>`;
+                
+                const slot = document.createElement('div');
+                slot.className = 'drop-slot';
+                slot.id = tgt.id;
+                slot.dataset.correct = tgt.correct;
+                setupDropEvents(slot);
+
+                tbl.appendChild(slot);
+                targetZone.appendChild(tbl);
+            });
+        }
+
+        // Custom Pointer Drag & Drop for Universal Support (Mobile & PC)
+        let draggedElement = null;
+        let placeholder = null;
+        let startX, startY, initialX, initialY;
+
+        function setupDragEvents(el) {
+            el.addEventListener('pointerdown', onPointerDown, { passive: false });
+        }
+
+        function setupDropEvents(el) {} // Handled in pointerup globally
+
+        function onPointerDown(e) {
+            if(e.button !== 0 && e.type !== 'touchstart') return;
+            e.preventDefault();
+            
+            draggedElement = e.target;
+            const rect = draggedElement.getBoundingClientRect();
+            
+            placeholder = document.createElement('div');
+            placeholder.style.width = rect.width + 'px';
+            placeholder.style.height = rect.height + 'px';
+            placeholder.style.border = '2px dashed var(--primary-neon)';
+            draggedElement.parentNode.insertBefore(placeholder, draggedElement);
+
+            draggedElement.classList.add('is-dragging');
+            draggedElement.style.position = 'fixed';
+            draggedElement.style.width = rect.width + 'px';
+            draggedElement.style.left = rect.left + 'px';
+            draggedElement.style.top = rect.top + 'px';
+
+            startX = e.clientX || (e.touches && e.touches[0].clientX);
+            startY = e.clientY || (e.touches && e.touches[0].clientY);
+            initialX = rect.left;
+            initialY = rect.top;
+
+            document.addEventListener('pointermove', onPointerMove, { passive: false });
+            document.addEventListener('pointerup', onPointerUp);
+        }
+
+        function onPointerMove(e) {
+            if (!draggedElement) return;
+            e.preventDefault();
+            const currentX = e.clientX || (e.touches && e.touches[0].clientX);
+            const currentY = e.clientY || (e.touches && e.touches[0].clientY);
+            
+            const dx = currentX - startX;
+            const dy = currentY - startY;
+
+            draggedElement.style.left = (initialX + dx) + 'px';
+            draggedElement.style.top = (initialY + dy) + 'px';
+            
+            document.querySelectorAll('.drop-slot').forEach(zone => {
+                if (isOverlapping(draggedElement, zone)) zone.classList.add('hovered');
+                else zone.classList.remove('hovered');
+            });
+        }
+
+        function onPointerUp(e) {
+            if (!draggedElement) return;
+            
+            document.removeEventListener('pointermove', onPointerMove);
+            document.removeEventListener('pointerup', onPointerUp);
+            
+            let targetZone = null;
+            document.querySelectorAll('.drop-slot').forEach(zone => {
+                zone.classList.remove('hovered');
+                if (isOverlapping(draggedElement, zone)) targetZone = zone;
+            });
+
+            draggedElement.classList.remove('is-dragging');
+            draggedElement.style.position = '';
+            draggedElement.style.left = '';
+            draggedElement.style.top = '';
+            draggedElement.style.width = '';
+
+            if (targetZone) {
+                if (targetZone.children.length > 0) {
+                    document.getElementById('source-zone').appendChild(targetZone.children[0]);
+                }
+                targetZone.appendChild(draggedElement);
+                playSFX('drop');
+            } else {
+                document.getElementById('source-zone').appendChild(draggedElement);
+            }
+
+            if (placeholder && placeholder.parentNode) placeholder.parentNode.removeChild(placeholder);
+            draggedElement = null;
+            placeholder = null;
+
+            checkLevelCompleteness();
+        }
+
+        function isOverlapping(el1, el2) {
+            const rect1 = el1.getBoundingClientRect();
+            const rect2 = el2.getBoundingClientRect();
+            const center1X = rect1.left + rect1.width / 2;
+            const center1Y = rect1.top + rect1.height / 2;
+            
+            return (center1X >= rect2.left && center1X <= rect2.right && center1Y >= rect2.top && center1Y <= rect2.bottom);
+        }
+
+        function checkLevelCompleteness() {
+            const dropzones = document.querySelectorAll('.drop-slot');
+            let isComplete = true;
+            dropzones.forEach(zone => { if (zone.children.length === 0) isComplete = false; });
+            document.getElementById('btn-submit').disabled = !isComplete;
+        }
+
+        function submitQuery() {
+            const dropzones = document.querySelectorAll('.drop-slot');
+            let allCorrectInLevel = true;
+
+            dropzones.forEach(zone => {
+                const child = zone.children[0];
+                const isCorrect = child.id === zone.dataset.correct;
+                const fieldName = zone.previousElementSibling.innerText;
+                
+                if (isCorrect) {
+                    state.correctDrops++;
+                } else {
+                    allCorrectInLevel = false;
+                }
+
+                state.answersLog.push({
+                    title: fieldName.replace('[FIELD]: ', ''),
+                    answer: child.innerText,
+                    correct: isCorrect
+                });
+            });
+
+            if (allCorrectInLevel) playSFX('correct');
+            else playSFX('wrong');
+
+            updateUI();
+
+            setTimeout(() => {
+                state.currentLevel++;
+                if (state.currentLevel < gameData.length) renderLevel();
+                else finishGame();
+            }, 600);
+        }
+
+        function updateUI() {
+            // Calculate percentage score based on individual drops
+            state.score = Math.round((state.correctDrops / state.totalDrops) * 100);
+            document.getElementById('ui-score').innerText = state.score + "%";
+            
+            const progressPct = ((state.currentLevel + 1) / gameData.length) * 100;
+            document.getElementById('ui-progress').style.width = progressPct + '%';
+            document.getElementById('ui-progress-text').innerText = Math.round(progressPct) + '% COMPLETE';
+
+            // Badges
+            if (state.currentLevel >= 2) document.getElementById('badge-1').classList.add('earned'); // After Lvl 3
+            if (state.currentLevel >= 5) document.getElementById('badge-2').classList.add('earned'); // After Lvl 6
+            if (state.currentLevel >= 9) document.getElementById('badge-3').classList.add('earned'); // After Lvl 10
+        }
+
+        function finishGame() {
+            switchScreen('screen-debrief');
+            document.getElementById('final-name').innerText = `${state.name} (${state.nik})`;
+            document.getElementById('final-score').innerText = state.score;
+
+            const msgEl = document.getElementById('reinforcement-msg');
+            if (state.score === 100) {
+                msgEl.innerText = "> EXECUTION_SUCCESS: Integritas Database 100%. Anda resmi menjadi MASTER OPERASIONAL.";
+                msgEl.style.color = "var(--primary-neon)";
+            } else if (state.score >= 75) {
+                msgEl.innerText = "> EXECUTION_PARTIAL: Query berjalan baik, namun terdapat anomali relasi tabel yang perlu direvisi.";
+                msgEl.style.color = "var(--secondary-neon)";
+            } else {
+                msgEl.innerText = "> EXECUTION_FAILED: Integritas data kritis. Evaluasi ulang SOP Modernisasi Tahap 2 diwajibkan.";
+                msgEl.style.color = "var(--accent-neon)";
+            }
+
+            const logEl = document.getElementById('result-log');
+            logEl.innerHTML = '';
+            state.answersLog.forEach(log => {
+                const li = document.createElement('li');
+                li.className = `audit-item ${log.correct ? 'success' : 'error'}`;
+                li.innerHTML = `> KEY: <strong>${log.title}</strong><br>> VAL: ${log.answer} [${log.correct ? 'OK' : 'FAIL'}]`;
+                logEl.appendChild(li);
+            });
+        }
+    </script>
+</body>
+</html>
